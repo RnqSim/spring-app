@@ -12,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://docclickconnect.vercel.app")
 public class PatientController {
     private final PatientService patientService;
     private static boolean isPatientLoggedIn = false;
