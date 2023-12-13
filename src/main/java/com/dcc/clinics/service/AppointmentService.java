@@ -12,6 +12,7 @@ import com.google.api.client.extensions.java6.auth.oauth2.VerificationCodeReceiv
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -59,6 +60,8 @@ public class AppointmentService {
     private static final Set<String> SCOPES = Collections.singleton(CalendarScopes.CALENDAR);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
 
+    private static final String REDIRECT_URI = "https://spring-render-qpn7.onrender.com:8888/Callback";
+
     @Autowired
     public AppointmentService(AppointmentRepository appointmentRepository, ScheduleRepository scheduleRepository, ClinicRepository clinicRepository, UserRepository userRepository, JavaMailSender javaMailSender) {
         this.appointmentRepository = appointmentRepository;
@@ -80,10 +83,21 @@ public class AppointmentService {
         GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                 HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
                 .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
-                .setAccessType("offline")
+                .setAccessType("online")
+                .setApprovalPrompt("auto")
                 .build();
-        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setHost("spring-render-qpn7.onrender.com").setPort(8888).build();
-        Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("docclickconnect@gmail.com");
+
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        //LocalServerReceiver receiver = new LocalServerReceiver.Builder().setHost("spring-render-qpn7.onrender.com").setPort(8888).build();
+        //Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("docclickconnect@gmail.com");
+        String url = flow.newAuthorizationUrl().setRedirectUri("https://spring-render-qpn7.onrender.com:8888/Callback").build();
+        System.out.println("****Please open the following URL in your browser then type the authorization code");
+        System.out.println("[COPY] " + url);
+        System.out.print("[PASTE] Authen code : ");
+        String code = br.readLine();
+
+        GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(REDIRECT_URI).execute();
+        GoogleCredential credential = new GoogleCredential().setFromTokenResponse(response);
 
         return credential;
     }
