@@ -82,7 +82,7 @@ public class AppointmentService {
                 .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
                 .setAccessType("offline")
                 .build();
-        LocalServerReceiverHttps receiver = new LocalServerReceiverHttps.Builder().setHost("spring-render-qpn7.onrender.com").setPort(8888).build();
+        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setHost("spring-render-qpn7.onrender.com").setPort(8888).build();
         Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("docclickconnect@gmail.com");
 
         return credential;
