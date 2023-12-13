@@ -10,7 +10,7 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
             .allowedOrigins("http://localhost:3000") // Add your frontend URL here
-//            .allowedOrigins("https://docclickconnect.vercel.app") // Add your frontend URL here
+            .allowedOrigins("https://docclickconnect.vercel.app") // Add your frontend URL here
             .allowedMethods("GET", "POST", "PUT", "DELETE")
             .allowCredentials(true); // If you need to include cookies in the request
     }
