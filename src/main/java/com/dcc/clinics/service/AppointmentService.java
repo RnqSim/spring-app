@@ -264,6 +264,94 @@ public class AppointmentService {
             appointment.setStatus(newStatus);
             Date scheduleDate = appointment.getScheduleDate();
 
+            try {
+                final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+                Calendar calendarService = new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+                        .setApplicationName(APPLICATION_NAME)
+                        .build();
+
+                String newDescription;
+                String oldDescription;
+
+                Long scheduleId = appointment.getScheduleId();
+                Schedule schedule = scheduleRepository.findByScheduleId(scheduleId);
+
+                LocalDate localDate = scheduleDate.toLocalDate();
+                LocalTime startLocalTime = schedule.getStartTime().toLocalTime().minusHours(8);
+                LocalDateTime startLocalDateTime = LocalDateTime.of(localDate, startLocalTime);
+                LocalTime endLocalTime = schedule.getEndTime().toLocalTime().minusHours(8);
+                LocalDateTime endLocalDateTime = LocalDateTime.of(localDate, endLocalTime);
+
+                DateTime startDateTime = new DateTime(startLocalDateTime.toString()+":00");
+                DateTime endDateTime = new DateTime(endLocalDateTime.toString()+":00");
+
+                if(oldStatus.compareTo("Scheduled by Patient")==0) {
+                    oldDescription = "Status: Waiting for Doctor Confirmation";
+                } else if (oldStatus.compareTo("Confirmed by Doctor")==0) {
+                    oldDescription = "Status: Confirmed";
+                } else if (oldStatus.compareTo("Cancelled")==0) {
+                    oldDescription = "Status: Cancelled";
+                } else if (oldStatus.compareTo("Rescheduled")==0) {
+                    oldDescription = "Rescheduled";
+                } else {
+                    oldDescription = "Unknown status";
+                }
+
+                if(newStatus.compareTo("Scheduled by Patient")==0) {
+                    newDescription = "Status: Waiting for Doctor Confirmation";
+                } else if (newStatus.compareTo("Confirmed by Doctor")==0) {
+                    newDescription = "Status: Confirmed";
+                } else if (newStatus.compareTo("Cancelled")==0) {
+                    newDescription = "Status: Cancelled";
+                } else if (newStatus.compareTo("Rescheduled")==0) {
+                    newDescription = "Rescheduled";
+                } else {
+                    newDescription = "Unknown status";
+                }
+
+                List<Appointment> sameScheduleAppointments = appointmentRepository.findAllByScheduleId(scheduleId);
+                for (Appointment toUpdateAppointment : sameScheduleAppointments) {
+                    if(toUpdateAppointment.getScheduleDate().compareTo(scheduleDate) == 0) {
+                        if(oldStatus.compareTo("Cancelled") == 0 && newStatus.compareTo("Cancelled") != 0){
+                            // getting uncancelled, reduce slots
+                            if(toUpdateAppointment.getSlots() == 0) {
+                                return "Appointment failed to save. No more slots available";
+                            }
+                            toUpdateAppointment.setSlots(toUpdateAppointment.getSlots()-1);
+                        } else if (oldStatus.compareTo("Cancelled") != 0 && newStatus.compareTo("Cancelled") == 0) {
+                            // getting cancelled, increase slots
+                            toUpdateAppointment.setSlots(toUpdateAppointment.getSlots()+1);
+                        }
+                        appointmentRepository.save(toUpdateAppointment);
+                    }
+                }
+
+                System.out.println("Old: " + oldDescription);
+                System.out.println("New: " + newDescription);
+
+                String pageToken = null;
+                do {
+                    Events events = calendarService.events().list("primary").setPageToken(pageToken).execute();
+                    List<Event> items = events.getItems();
+                    for (Event event : items) {
+                        System.out.println(event.getSummary());
+                        if (event.getDescription().compareTo(oldDescription) == 0 &&
+                                event.getEnd().getDateTime().toString().compareTo(endDateTime.toString()) == 0 &&
+                                event.getStart().getDateTime().toString().compareTo(startDateTime.toString()) == 0) {
+                            System.out.println("Event Found ================================================================");
+                            event.setDescription(newDescription);
+                            Event updatedEvent = calendarService.events().update("primary", event.getId(), event).execute();
+                            break;
+                        }
+                    }
+                    pageToken = events.getNextPageToken();
+                } while (pageToken != null);
+            } catch (Exception e) {
+                e.printStackTrace();
+                return "Failed to Update Google Calendar";
+            }
+            System.out.print("Update ================================================================");
+
             appointmentRepository.save(appointment);
             Long patientId = appointment.getPatientUserId();
             User patient = userRepository.findByUserId(patientId);
