@@ -87,17 +87,12 @@ public class AppointmentService {
                 .setApprovalPrompt("auto")
                 .build();
 
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        //LocalServerReceiver receiver = new LocalServerReceiver.Builder().setHost("spring-render-qpn7.onrender.com").setPort(8888).build();
-        //Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("docclickconnect@gmail.com");
-        String url = flow.newAuthorizationUrl().setRedirectUri("https://spring-render-qpn7.onrender.com/Callback").build();
-        System.out.println("****Please open the following URL in your browser then type the authorization code");
-        System.out.println("[COPY] " + url);
-        System.out.print("[PASTE] Authen code : ");
-        String code = br.readLine();
-
-        GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(REDIRECT_URI).execute();
-        GoogleCredential credential = new GoogleCredential().setFromTokenResponse(response);
+        LocalServerReceiverHttps receiver = new LocalServerReceiverHttps.Builder().setHost("spring-render-qpn7.onrender.com").build();
+        Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("docclickconnect@gmail.com");
+        //String url = flow.newAuthorizationUrl().setRedirectUri("https://spring-render-qpn7.onrender.com/Callback").build();
+        //String code ;
+        //GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(REDIRECT_URI).execute();
+        //GoogleCredential credential = new GoogleCredential().setFromTokenResponse(response);
 
         return credential;
     }
