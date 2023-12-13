@@ -111,7 +111,7 @@ public class LocalServerReceiverHttps implements VerificationCodeReceiver {
             Throwables.propagateIfPossible(e);
             throw new IOException(e);
         }
-        return "https://" + this.getHost() + ":" + port + callbackPath;
+        return "https://" + this.getHost() + callbackPath;
     }
 
     /*
