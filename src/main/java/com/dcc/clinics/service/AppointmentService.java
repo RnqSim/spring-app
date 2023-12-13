@@ -80,7 +80,7 @@ public class AppointmentService {
                 .setAccessType("offline")
                 .build();
 
-        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setHost("https://spring-render-qpn7.onrender.com").setPort(8888).setProtocol("https").build();
+        LocalServerReceiver receiver = new LocalServerReceiver.Builder().setHost("https://spring-render-qpn7.onrender.com").setPort(8888).build();
         Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("docclickconnect@gmail.com");
 
         return credential;
