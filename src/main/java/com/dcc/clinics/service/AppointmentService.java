@@ -60,7 +60,7 @@ public class AppointmentService {
     private static final Set<String> SCOPES = Collections.singleton(CalendarScopes.CALENDAR);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
 
-    private static final String REDIRECT_URI = "https://spring-render-qpn7.onrender.com:8888/Callback";
+    private static final String REDIRECT_URI = "https://spring-render-qpn7.onrender.com/Callback";
 
     @Autowired
     public AppointmentService(AppointmentRepository appointmentRepository, ScheduleRepository scheduleRepository, ClinicRepository clinicRepository, UserRepository userRepository, JavaMailSender javaMailSender) {
@@ -90,7 +90,7 @@ public class AppointmentService {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         //LocalServerReceiver receiver = new LocalServerReceiver.Builder().setHost("spring-render-qpn7.onrender.com").setPort(8888).build();
         //Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("docclickconnect@gmail.com");
-        String url = flow.newAuthorizationUrl().setRedirectUri("https://spring-render-qpn7.onrender.com:8888/Callback").build();
+        String url = flow.newAuthorizationUrl().setRedirectUri("https://spring-render-qpn7.onrender.com/Callback").build();
         System.out.println("****Please open the following URL in your browser then type the authorization code");
         System.out.println("[COPY] " + url);
         System.out.print("[PASTE] Authen code : ");
