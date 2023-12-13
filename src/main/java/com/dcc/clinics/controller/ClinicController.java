@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "https://spring-render-qpn7.onrender.com")
+@CrossOrigin(origins = "https://docclickconnect.vercel.app/")
 @RequestMapping("/clinic")
 public class ClinicController {
 

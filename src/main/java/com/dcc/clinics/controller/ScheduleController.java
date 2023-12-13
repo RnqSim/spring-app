@@ -11,7 +11,7 @@ import java.sql.Time;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "https://spring-render-qpn7.onrender.com")
+@CrossOrigin(origins = "https://docclickconnect.vercel.app/")
 public class ScheduleController {
 
     private final ScheduleService scheduleService;

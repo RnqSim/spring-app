@@ -11,7 +11,7 @@ import java.sql.Date;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "https://spring-render-qpn7.onrender.com")
+@CrossOrigin(origins = "https://docclickconnect.vercel.app/")
 public class AppointmentController {
     private final AppointmentService appointmentService;
 
