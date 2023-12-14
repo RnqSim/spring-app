@@ -112,8 +112,7 @@ public class AppointmentService {
 
 //        LocalServerReceiverHttps receiver = new LocalServerReceiverHttps.Builder().setHost("spring-render-qpn7.onrender.com").build();
         Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
-        return catchCredential();
-
+        return credential;
         //Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
 
         //String url = flow.newAuthorizationUrl().setRedirectUri("https://spring-render-qpn7.onrender.com/Callback").build();
@@ -121,19 +120,6 @@ public class AppointmentService {
         //GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(REDIRECT_URI).execute();
 
         //GoogleCredential credential = new GoogleCredential().setFromTokenResponse(response);
-    }
-
-    public static Credential catchCredential() { return credential; }
-
-    public static String catchCode(String code) {
-        try {
-            TokenResponse response = flow.newTokenRequest(code).setRedirectUri(redirectUri).execute();
-            credential = flow.createAndStoreCredential(response, userId);
-            return "Credentials Received";
-        } catch (IOException e) {
-            e.printStackTrace();
-            return "Credentials Not Received";
-        }
     }
 
     public String saveAppointment(Long patientId, Long scheduleId, Date scheduleDate, String status) {
