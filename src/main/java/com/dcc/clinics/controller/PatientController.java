@@ -27,6 +27,16 @@ public class PatientController {
         Patient patient = userPatientRequest.getPatient();
         return ResponseEntity.ok(patientService.addUser(user, patient));
     }
+
+    @PostMapping("/patientverify")
+    public ResponseEntity<String> verifyUser(@RequestParam("email") String email,
+                                             @RequestParam("otp") Integer otp) {
+        if (patientService.verifyUser(email, otp)) {
+            return ResponseEntity.ok("Successful verification.");
+        } else {
+            return ResponseEntity.ok("Unsuccessful verification.");
+        }
+    }
     
     @GetMapping("/patientview/{patientUserId}")
     public Patient getPatientProfile(@PathVariable Long patientUserId) {
@@ -49,7 +59,16 @@ public class PatientController {
         return patientService.getUserIdByUsername(username);
     }
 
-	@CrossOrigin(origins = "http://localhost:3000")
+    @GetMapping("/allpatients")
+    public ResponseEntity<List<Patient>> viewAllUsers() {
+        List<Patient> allUsers = patientService.getAllUsers();
+        if (allUsers != null && !allUsers.isEmpty()) {
+            return ResponseEntity.ok(allUsers);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PutMapping("/editpatient/{username}")
     public ResponseEntity<String> updateDetails(@PathVariable String username, @RequestBody UserPatientRequest userPatientRequest) {
     	User user = userPatientRequest.getUser();
@@ -62,17 +81,6 @@ public class PatientController {
         }
     }
 
-
-	@CrossOrigin(origins = "http://localhost:3000")
-    @GetMapping("/patientverify")
-    public ResponseEntity<String> verifyUser(@RequestParam("email") String email,
-            								@RequestParam("otp") Integer otp) {
-    	if (patientService.verifyUser(email, otp)) {
-    		return ResponseEntity.ok("Successful verification.");
-    	} else {
-    		return ResponseEntity.ok("Unsuccessful verification.");
-    	}
-    }
 
     @PostMapping("/patientlogin")
     public ResponseEntity<String> login(@RequestParam("username") String username,
@@ -100,13 +108,5 @@ public class PatientController {
     }
     
     
-    @GetMapping("/allpatients")
-    public ResponseEntity<List<Patient>> viewAllUsers() {
-        List<Patient> allUsers = patientService.getAllUsers();
-        if (allUsers != null && !allUsers.isEmpty()) {
-            return ResponseEntity.ok(allUsers);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
+
 }

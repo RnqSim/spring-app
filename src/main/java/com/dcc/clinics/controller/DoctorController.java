@@ -29,8 +29,7 @@ public class DoctorController {
     }
     
     
-    @CrossOrigin(origins = "http://localhost:3000")
-    @GetMapping("/doctorverify")
+    @PostMapping("/doctorverify")
     public ResponseEntity<String> verifyUser(@RequestParam("email") String email,
             								@RequestParam("otp") Integer otp) {
     	if (doctorService.verifyUser(email, otp)) {
@@ -39,7 +38,7 @@ public class DoctorController {
     		return ResponseEntity.ok("Unsuccessful verification.");
     	}
     }
-    @CrossOrigin(origins = "http://localhost:3000")
+
 	 @GetMapping("/getDoctorUserId")
 	    public ResponseEntity<Long> getDoctorUserId(@RequestParam String username) {
 	        Long doctorUserId = doctorService.getDoctorUserIdByUsername(username);

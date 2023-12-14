@@ -192,12 +192,11 @@ public class PatientService {
 
 
 
-	private void sendVerificationEmail(String to, String subject, Integer code) {
+    private void sendVerificationEmail(String to, String subject, Integer code) {
         SimpleMailMessage message = new SimpleMailMessage();
-        String link = "http://localhost:8080/verify?email=" + to + "&otp=" + code;
         message.setTo(to);
         message.setSubject(subject);
-        message.setText("To verify your account, please enter this code: " + String.valueOf(code) + "\n\nOr follow this link in your browser: " + link);
+        message.setText("To verify your account, please enter this code: " + String.valueOf(code));
         javaMailSender.send(message);
     }
     private Integer generateVerificationCode() {
