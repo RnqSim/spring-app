@@ -11,7 +11,7 @@ import java.sql.Date;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://docclickconnect.vercel.app")
 public class AppointmentController {
     private final AppointmentService appointmentService;
 
@@ -122,5 +122,9 @@ public class AppointmentController {
         }
     }
 
+    @GetMapping("/Callback")
+    public String catchCode(@RequestParam String code) {
+        return appointmentService.catchCode(code);
+    }
 
 }

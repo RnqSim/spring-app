@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://docclickconnect.vercel.app")
 @RequestMapping("/clinic")
 public class ClinicController {
 
@@ -25,9 +25,9 @@ public class ClinicController {
         return ResponseEntity.ok(clinicService.saveClinic(clinic));
     }
 
-    @PutMapping
-    public ResponseEntity<String> updateClinic(@RequestBody Clinic clinic) {
-        return ResponseEntity.ok(clinicService.updateClinic(clinic));
+    @PutMapping("/{clinicId}")
+    public ResponseEntity<String> updateClinic(@PathVariable("clinicId") Long clinicId, @RequestBody Clinic clinic) {
+        return ResponseEntity.ok(clinicService.updateClinic(clinicId, clinic));
     }
 
     @DeleteMapping("/{clinicId}")

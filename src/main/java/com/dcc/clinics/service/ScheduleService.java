@@ -88,7 +88,9 @@ public class ScheduleService {
     public List<Schedule> searchByDoctorUserId(Long doctorId) {
         return scheduleRepository.findByDoctorUserId(doctorId);
     }
-    
+    public List<Schedule> searchByClinicId(Long clinicId) {
+        return scheduleRepository.findByClinicId(clinicId);
+    }
 
     public List<Schedule> searchByScheduleDay(String scheduleDay) {
         return scheduleRepository.findByScheduleDay(scheduleDay);
@@ -97,4 +99,6 @@ public class ScheduleService {
     public Schedule findScheduleById(Long scheduleId) {
         return scheduleRepository.findById(scheduleId).orElse(null);
     }
+    
+
 }

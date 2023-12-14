@@ -11,7 +11,7 @@ import java.sql.Time;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "https://docclickconnect.vercel.app")
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
@@ -91,6 +91,11 @@ public class ScheduleController {
     @GetMapping("/schedule/{scheduleId}")
     public ResponseEntity<Schedule> findScheduleById(@PathVariable("scheduleId") Long scheduleId) {
         return ResponseEntity.ok(scheduleService.findScheduleById(scheduleId));
+    }
+    
+    @GetMapping("/searchByClinicId/{clinicId}")
+    public List<Schedule> searchByClinicId(@PathVariable Long clinicId) {
+        return scheduleService.searchByClinicId(clinicId);
     }
 
 }
