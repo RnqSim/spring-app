@@ -11,7 +11,7 @@ import java.sql.Date;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "https://docclickconnect.vercel.app/")
+@CrossOrigin(origins = "http://localhost:3000")
 public class AppointmentController {
     private final AppointmentService appointmentService;
 
@@ -48,7 +48,26 @@ public class AppointmentController {
         List<Appointment> appointments = appointmentService.getAppointmentsByDoctorUserId(doctorUserId);
         return ResponseEntity.ok(appointments);
     }
+    
+    @GetMapping("/checkSlots/{scheduleId}/{scheduleDate}")
+    public ResponseEntity<String> checkSlots(
+    		@PathVariable Long scheduleId,
+    		@PathVariable Date scheduleDate) {
+        return appointmentService.checkSlotsAvailability(scheduleId, scheduleDate);
+    }
 
+    @GetMapping("/getScheduleId/{appointmentId}")
+    public ResponseEntity<Long> getScheduleId(@PathVariable Long appointmentId) {
+        Long scheduleId = appointmentService.getScheduleId(appointmentId);
+
+        if (scheduleId != null) {
+            return ResponseEntity.ok(scheduleId);
+        } else {
+            // Handle the case when the schedule is not found
+            return ResponseEntity.notFound().build();
+        }
+    }
+    
     @PutMapping("appointmentChange/{appointmentId}")
     public ResponseEntity<String> updateAppointmentStatus(
             @PathVariable Long appointmentId,

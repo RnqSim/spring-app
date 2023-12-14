@@ -11,8 +11,11 @@ import com.dcc.clinics.repository.UserRepository;
 import com.dcc.clinics.repository.DoctorRepository;
 import com.dcc.clinics.repository.UnverifiedDoctorRepository;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
@@ -27,8 +30,10 @@ public class DoctorService {
 	private final UserRepository userRepository;
 	private final DoctorRepository doctorRepository;
 	private final JavaMailSender javaMailSender;
-	private User loggedInDoctor;
-	private User loggedInAdmin;
+	private List<User> loggedInDoctors = new ArrayList<>();
+	private List<User> loggedInAdmins = new ArrayList<>();
+
+
 
     @Autowired
     public DoctorService(UnverifiedUserRepository unverifiedUserRepository,UnverifiedDoctorRepository unverifiedDoctorRepository, UserRepository userRepository, DoctorRepository doctorRepository, JavaMailSender javaMailSender) {
@@ -95,6 +100,40 @@ public class DoctorService {
         
     }
     
+
+    public Doctor getDoctorProfile(Long doctorUserId) {
+    	return doctorRepository.findByUserId(doctorUserId);
+    }
+    
+    public User getAdminProfile(Long adminId) {
+    	return userRepository.findByUserId(adminId);
+    }
+    
+    
+    public Doctor getDoctorByUsername(String username) {
+        User user = userRepository.findByUsername(username);
+
+        for (User loggedInDoctors : loggedInDoctors) {
+            if (loggedInDoctors.getUserId().equals(user.getUserId())) {
+                return getDoctorProfile(user.getUserId());
+            }
+        }
+
+        return null;
+    }
+    
+    public User getAdminByUsername(String username) {
+        User user = userRepository.findByUsername(username);
+
+        for (User loggedInAdmins : loggedInAdmins) {
+            if (loggedInAdmins.getUserId().equals(user.getUserId())) {
+                return getAdminProfile(user.getUserId());
+            }
+        }
+
+        return null;
+    }
+    
     public Long getDoctorUserIdByUsername(String username) {
         User user = userRepository.findByUsername(username);
         if (user != null) {
@@ -114,14 +153,12 @@ public class DoctorService {
 
         BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder();
         if (bcrypt.matches(password, storedUser.getPassword()) && "admin".equals(storedUser.getUserType())) {
-        	setLoggedInAdmin(storedUser);
+            loggedInAdmins.add(storedUser);
             return "Login successful";
         } else {
             return "Invalid username or password for admin login.";
         }
     }
-
-
 
 
     
@@ -161,7 +198,7 @@ public class DoctorService {
                 Doctor doctor = doctorRepository.findByUserId(user.getUserId());
 
                 if (doctor != null && "Verified by Admin".equalsIgnoreCase(doctor.getApprovalStatus())) {
-                    setLoggedInDoctor(user);
+                    loggedInDoctors.add(user);
                     return true;
                 } else if (doctor != null) {
                     // This is a doctor account, but it's not approved by the admin
@@ -185,9 +222,7 @@ public class DoctorService {
         BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder();
         User user = userRepository.findByUsername(username);
 
-        String loggedInDoctorUsername = loggedInDoctor.getUsername();
-
-        if(loggedInDoctorUsername != username && user != null && bcrypt.matches(oldPassword, user.getPassword())) {
+        if( user != null && bcrypt.matches(oldPassword, user.getPassword())) {
             String encryptedPassword = bcrypt.encode(newPassword);
             user.setPassword(encryptedPassword);
             userRepository.save(user);
@@ -195,48 +230,44 @@ public class DoctorService {
         }
         return "Failed to change password";
     }
+    
 
 
-    public void logout() {
-        setLoggedInDoctor(null);
+
+    public void logout(String username) {
+        // Remove the logged-out patient from the list based on the username
+        loggedInDoctors.removeIf(user -> user.getUsername().equals(username));
     }
     
-    public void adminlogout() {
-        setLoggedInAdmin(null);
+    public void adminlogout(String username) {
+        // Remove the logged-out patient from the list based on the username
+        loggedInAdmins.removeIf(user -> user.getUsername().equals(username));
     }
 
     public User getUserByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
-    public Doctor getLoggedInDoctor() {
-        return doctorRepository.findByUserId(loggedInDoctor.getUserId());
-    }
 
     public void setLoggedInDoctor(User loggedInDoctor) {
-        this.loggedInDoctor = loggedInDoctor;
+    	loggedInDoctors.add(loggedInDoctor);    
     }
     
-    public User getLoggedInAdmin() {
-        return userRepository.findByUserId(loggedInAdmin.getUserId());
+    public List<Long> getLoggedInDoctorUserIds() {
+        // Return a list of user IDs for all logged-in patients
+        return loggedInDoctors.stream()
+                .map(User::getUserId)
+                .collect(Collectors.toList());
     }
+
+
 
     public void setLoggedInAdmin(User loggedInAdmin) {
-        this.loggedInAdmin = loggedInAdmin;
+    	loggedInDoctors.add(loggedInAdmin);
     }
-    public Long getLoggedInDoctorUserId() {
-        if (loggedInDoctor != null) {
-            return loggedInDoctor.getUserId();
-        } else {
-            // Return a default value or handle the case when no patient is logged in.
-            return null; // You can choose an appropriate value or handle the case accordingly.
-        }
-    }
+    
 
     public String setApprovalStatusForDoctor(Long userId, String approvalStatus) {
-        if (loggedInAdmin == null) {
-            return "Admin not logged in. Cannot set approval status.";
-        }
 
         Doctor doctor = doctorRepository.findByUserId(userId);
 
@@ -274,43 +305,57 @@ public class DoctorService {
         return doctorRepository.findAll();
     }
     
-    public String updateUserAndDoctorDetails(User user, Doctor doctor) {
-        if (loggedInDoctor == null) {
-            return "User not logged in"; // User is not logged in
+    public String updateUserAndDoctorDetails(String username, User user, Doctor doctor) {
+
+        if (loggedInDoctors == null) {
+            return "User not logged in";
         }
 
-        Long userId = loggedInDoctor.getUserId(); // Get the userId from the logged-in user
-        User existingUser = userRepository.findByUserId(userId);
-        Doctor existingDoctor = doctorRepository.findByUserId(userId);
+        // Find the logged-in user based on the username
+        Optional<User> optionalUser = loggedInDoctors.stream()
+                .filter(loggedInUser -> loggedInUser.getUsername().equals(username))
+                .findFirst();
 
-        if (existingUser != null && existingDoctor != null) {
-            // Update user details
-            existingUser.setFirstName(user.getFirstName());
-            existingUser.setMiddleName(user.getMiddleName());
-            existingUser.setLastName(user.getLastName());
-            existingUser.setAge(user.getAge());
-            existingUser.setSex(user.getSex());
-            existingUser.setBirthday(user.getBirthday());
-            existingUser.setAddress(user.getAddress());
-            existingUser.setContactNumber(user.getContactNumber());
-            existingUser.setEmail(user.getEmail());
-            existingUser.setAvatar(user.getAvatar());
+        // Check if the user is found
+        if (optionalUser.isPresent()) {
+            User existingUser = optionalUser.get();
+            Long userId = existingUser.getUserId(); // Get the userId from the logged-in user
 
-            // Update patient details
-            existingDoctor.setPrcId(doctor.getPrcId());
-            existingDoctor.setSpecialization(doctor.getSpecialization());
-            existingDoctor.setCredentials(doctor.getCredentials());
-            existingDoctor.setSecretary(doctor.getSecretary());
-            existingDoctor.setLicenseNumber(doctor.getLicenseNumber());
-            existingDoctor.setPtrNumber(doctor.getPtrNumber());
+            // Find existing user and doctor by userId
+            User existingUserFromDb = userRepository.findByUserId(userId);
+            Doctor existingDoctorFromDb = doctorRepository.findByUserId(userId);
 
-            // Save updated user and patient details
-            userRepository.save(existingUser);
-            doctorRepository.save(existingDoctor);
+            if (existingUserFromDb != null && existingDoctorFromDb != null) {
+                // Update user details
+                existingUserFromDb.setFirstName(user.getFirstName());
+                existingUserFromDb.setMiddleName(user.getMiddleName());
+                existingUserFromDb.setLastName(user.getLastName());
+                existingUserFromDb.setAge(user.getAge());
+                existingUserFromDb.setSex(user.getSex());
+                existingUserFromDb.setBirthday(user.getBirthday());
+                existingUserFromDb.setAddress(user.getAddress());
+                existingUserFromDb.setContactNumber(user.getContactNumber());
+                existingUserFromDb.setEmail(user.getEmail());
+                existingUserFromDb.setAvatar(user.getAvatar());
 
-            return "User and doctor details updated successfully";
+                // Update doctor details
+                existingDoctorFromDb.setPrcId(doctor.getPrcId());
+                existingDoctorFromDb.setSpecialization(doctor.getSpecialization());
+                existingDoctorFromDb.setCredentials(doctor.getCredentials());
+                existingDoctorFromDb.setSecretary(doctor.getSecretary());
+                existingDoctorFromDb.setLicenseNumber(doctor.getLicenseNumber());
+                existingDoctorFromDb.setPtrNumber(doctor.getPtrNumber());
+
+                // Save updated user and doctor details
+                userRepository.save(existingUserFromDb);
+                doctorRepository.save(existingDoctorFromDb);
+
+                return "User and doctor details updated successfully";
+            } else {
+                return "User or doctor not found for the given ID";
+            }
         } else {
-            return "User or doctor not found for the given ID";
+            return "User not found";
         }
     }
 }

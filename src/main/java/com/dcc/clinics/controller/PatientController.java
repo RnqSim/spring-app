@@ -12,10 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@CrossOrigin(origins = "https://docclickconnect.vercel.app/")
+@CrossOrigin(origins = "http://localhost:3000")
 public class PatientController {
     private final PatientService patientService;
-    private static boolean isPatientLoggedIn = false;
 
     @Autowired
     public PatientController(PatientService patientService) {
@@ -29,22 +28,33 @@ public class PatientController {
         return ResponseEntity.ok(patientService.addUser(user, patient));
     }
     
-    @GetMapping("/checkLoggedInPatient")
-    public Long getLoggedInPatientUserId() {
-        return patientService.getLoggedInPatientUserId();
-    }
-    
     @GetMapping("/patientview/{patientUserId}")
     public Patient getPatientProfile(@PathVariable Long patientUserId) {
         return patientService.getPatientProfile(patientUserId);
     }
+    
+    @GetMapping("/patientdetails/{username}")
+    public ResponseEntity<Patient> getUserByUsername(@PathVariable String username) {
+        Patient user = patientService.getUserByUsername(username);
+
+        if (user != null) {
+            return ResponseEntity.ok(user);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+    
+    @GetMapping("/patuserid/{username}")
+    public Long getUserIdByUsername(@PathVariable String username) {
+        return patientService.getUserIdByUsername(username);
+    }
 
 	@CrossOrigin(origins = "http://localhost:3000")
-    @PutMapping("/editpatient")
-    public ResponseEntity<String> updateDetails(@RequestBody UserPatientRequest userPatientRequest) {
+    @PutMapping("/editpatient/{username}")
+    public ResponseEntity<String> updateDetails(@PathVariable String username, @RequestBody UserPatientRequest userPatientRequest) {
     	User user = userPatientRequest.getUser();
         Patient patient = userPatientRequest.getPatient();
-        String result = patientService.updateUserAndPatientDetails(user, patient);
+        String result = patientService.updateUserAndPatientDetails(username, user, patient);
         if ("User and patient details updated successfully".equals(result)) {
             return ResponseEntity.ok(result);
         } else {
@@ -67,26 +77,17 @@ public class PatientController {
     @PostMapping("/patientlogin")
     public ResponseEntity<String> login(@RequestParam("username") String username,
                                         @RequestParam("password") String password) {
-        if (isPatientLoggedIn) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Another user is already logged in");
-        }
 
         if (patientService.login(username, password)) {
-            isPatientLoggedIn = true;
             return ResponseEntity.ok("Login successful");
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Login failed");
         }
     }
 
-    @PostMapping("/patientlogout")
-    public ResponseEntity<String> logout() {
-        if (!isPatientLoggedIn) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("No user is currently logged in");
-        }
-
-        patientService.logout();
-        isPatientLoggedIn = false;
+    @PostMapping("/patientlogout/{username}")
+    public ResponseEntity<String> logout(@PathVariable String username) {
+        patientService.logout(username);
         return ResponseEntity.ok("Logged out successfully");
     }
 
@@ -95,21 +96,9 @@ public class PatientController {
             @RequestParam ("username") String username,
             @RequestParam ("oldPassword") String oldPassword,
             @RequestParam ("newPassword") String newPassword) {
-        if (!isPatientLoggedIn) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("No user is currently logged in");
-        }
         return ResponseEntity.ok(patientService.changePassword(username, oldPassword, newPassword));
     }
     
-    @GetMapping("/patientprofile")
-    public ResponseEntity<Patient> getUserProfile() {
-        Patient loggedInUser = patientService.getLoggedInUser();
-        if (loggedInUser != null) {
-            return ResponseEntity.ok(loggedInUser);
-        } else {
-            return ResponseEntity.notFound().build();
-        }
-    }
     
     @GetMapping("/allpatients")
     public ResponseEntity<List<Patient>> viewAllUsers() {

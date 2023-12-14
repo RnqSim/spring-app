@@ -8,31 +8,30 @@ import com.dcc.clinics.repository.ScheduleRepository;
 import com.dcc.clinics.repository.UserRepository;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
-import com.google.api.client.extensions.java6.auth.oauth2.VerificationCodeReceiver;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
-import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.DateTime;
-import com.google.api.client.util.Throwables;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.calendar.Calendar;
 import com.google.api.services.calendar.CalendarScopes;
 import com.google.api.services.calendar.model.*;
 import com.dcc.clinics.model.Appointment;
 import com.dcc.clinics.repository.AppointmentRepository;
-import com.sun.net.httpserver.HttpContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-import java.io.*;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -60,8 +59,6 @@ public class AppointmentService {
     private static final Set<String> SCOPES = Collections.singleton(CalendarScopes.CALENDAR);
     private static final String CREDENTIALS_FILE_PATH = "/credentials.json";
 
-    private static final String REDIRECT_URI = "https://spring-render-qpn7.onrender.com/Callback";
-
     @Autowired
     public AppointmentService(AppointmentRepository appointmentRepository, ScheduleRepository scheduleRepository, ClinicRepository clinicRepository, UserRepository userRepository, JavaMailSender javaMailSender) {
         this.appointmentRepository = appointmentRepository;
@@ -70,7 +67,7 @@ public class AppointmentService {
         this.userRepository = userRepository;
 		this.javaMailSender = javaMailSender;
     }
-    
+
     private static Credential getCredentials(final NetHttpTransport HTTP_TRANSPORT) throws IOException {
         // Load client secrets.
         InputStream in = AppointmentService.class.getResourceAsStream(CREDENTIALS_FILE_PATH);
@@ -138,7 +135,12 @@ public class AppointmentService {
         // set slots
         List<Appointment> sameScheduleAppointments = appointmentRepository.findAllByScheduleId(scheduleId);
         if (sameScheduleAppointments.isEmpty()) {
-            appointment.setSlots(schedule.getSlots()-1);
+        	Integer availableSlots = schedule.getSlots();
+
+            // Check for null before subtracting 1
+            if (availableSlots != null) {
+                appointment.setSlots(availableSlots - 1);
+            }
         } else {
             for (Appointment toUpdateAppointment : sameScheduleAppointments) {
                 if(toUpdateAppointment.getScheduleDate().compareTo(scheduleDate) == 0) {
@@ -281,10 +283,10 @@ public class AppointmentService {
 //
 //                String newDescription;
 //                String oldDescription;
-
+//
                 Long scheduleId = appointment.getScheduleId();
                 Schedule schedule = scheduleRepository.findByScheduleId(scheduleId);
-
+//
 //                LocalDate localDate = scheduleDate.toLocalDate();
 //                LocalTime startLocalTime = schedule.getStartTime().toLocalTime().minusHours(8);
 //                LocalDateTime startLocalDateTime = LocalDateTime.of(localDate, startLocalTime);
@@ -334,7 +336,7 @@ public class AppointmentService {
                         appointmentRepository.save(toUpdateAppointment);
                     }
                 }
-//
+
 //                System.out.println("Old: " + oldDescription);
 //                System.out.println("New: " + newDescription);
 //
@@ -423,6 +425,50 @@ public class AppointmentService {
         return appointmentRepository.findAll();
     }
     
+    public ResponseEntity<String> checkSlotsAvailability(Long scheduleId, Date scheduleDate) {
+        List<Appointment> appointmentsForSchedule = appointmentRepository.findAllByScheduleId(scheduleId);
+
+        if (appointmentsForSchedule.isEmpty()) {
+        	 Schedule schedule = scheduleRepository.findById(scheduleId).orElse(null);
+
+             if (schedule != null) {
+                 int remainingSlots = schedule.getSlots();
+                 return ResponseEntity.ok(remainingSlots + " slots remaining.");
+             }
+            
+        } else {
+        	boolean isAppointmentOnDate = appointmentsForSchedule.stream()
+        	        .anyMatch(appointment -> appointment.getScheduleDate().equals(scheduleDate));
+
+        	if (isAppointmentOnDate) {
+        	    Optional<Appointment> anyAppointment = appointmentsForSchedule.stream()
+        	            .filter(appointment -> appointment.getScheduleDate().equals(scheduleDate))
+        	            .findAny();
+
+        	    if (anyAppointment.isPresent()) {
+        	        int availableSlots = anyAppointment.get().getSlots();
+
+        	        if (availableSlots == 0) {
+        	            return ResponseEntity.ok("Slots are already full for the specified date.");
+        	        } else {
+        	            return ResponseEntity.ok(availableSlots + " slots remaining.");
+        	        }
+        	    }
+
+            }
+            else {
+            	Schedule schedule = scheduleRepository.findById(scheduleId).orElse(null);
+
+                if (schedule != null) {
+                    int remainingSlots = schedule.getSlots();
+                    return ResponseEntity.ok(remainingSlots + " slots remaining.");
+                }
+            }
+        }
+
+        return ResponseEntity.badRequest().body("Invalid scheduleId or scheduleDate.");
+    }
+    
     public void sendNotification(String email, Date scheduleDate, String status) {
         String subject = "Appointment Status";
         sendAppointmentNotification(email, subject, scheduleDate, status);
@@ -442,6 +488,15 @@ public class AppointmentService {
     public List<Appointment> getAppointmentsByDoctorUserId(Long doctorUserId) {
         return appointmentRepository.findAllByDoctorUserId(doctorUserId);
     }
+    
+
+    public Long getScheduleId(Long appointmentId) {
+        // Assuming appointmentRepository is an instance of JpaRepository<Appointment, Long>
+        Optional<Appointment> optionalAppointment = appointmentRepository.findById(appointmentId);
+
+        return optionalAppointment.map(Appointment::getScheduleId).orElse(null);
+    }
+
 
     public Appointment findAppointmentById(Long appointmentId) {
         return appointmentRepository.findById(appointmentId).orElse(null);

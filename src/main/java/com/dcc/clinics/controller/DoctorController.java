@@ -12,11 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@CrossOrigin(origins = "https://docclickconnect.vercel.app/")
+@CrossOrigin(origins = "http://localhost:3000")
 public class DoctorController {
     private final DoctorService doctorService;
-    private static boolean isDoctorLoggedIn = false;
-    private static boolean isAdminLoggedIn = false;
 
     @Autowired
     public DoctorController(DoctorService doctorService) {
@@ -30,17 +28,8 @@ public class DoctorController {
     	return ResponseEntity.ok(doctorService.addUser(user, doctor));
     }
     
-    @GetMapping("/checkLoggedInDoctor")
-    public Long getLoggedInDoctorUserId() {
-        return doctorService.getLoggedInDoctorUserId();
-    }
     
-    @GetMapping("/checkLoggedInAdmin")
-    public User getLoggedInAdmin() {
-        return doctorService.getLoggedInAdmin();
-    }
-    
-	@CrossOrigin(origins = "https://docclickconnect.vercel.app")
+    @CrossOrigin(origins = "http://localhost:3000")
     @GetMapping("/doctorverify")
     public ResponseEntity<String> verifyUser(@RequestParam("email") String email,
             								@RequestParam("otp") Integer otp) {
@@ -50,7 +39,7 @@ public class DoctorController {
     		return ResponseEntity.ok("Unsuccessful verification.");
     	}
     }
-	@CrossOrigin(origins = "https://docclickconnect.vercel.app")
+    @CrossOrigin(origins = "http://localhost:3000")
 	 @GetMapping("/getDoctorUserId")
 	    public ResponseEntity<Long> getDoctorUserId(@RequestParam String username) {
 	        Long doctorUserId = doctorService.getDoctorUserIdByUsername(username);
@@ -61,13 +50,27 @@ public class DoctorController {
 	            return ResponseEntity.notFound().build();
 	        }
 	    }
-    @GetMapping("/doctorprofile")
-    public ResponseEntity<Doctor> getUserProfile() {
-        Doctor loggedInUser = doctorService.getLoggedInDoctor();
-        if (loggedInUser != null) {
-            return ResponseEntity.ok(loggedInUser);
+
+    
+    @GetMapping("/doctordetails/{username}")
+    public ResponseEntity<Doctor> getDoctorByUsername(@PathVariable String username) {
+    	Doctor user = doctorService.getDoctorByUsername(username);
+
+        if (user != null) {
+            return ResponseEntity.ok(user);
         } else {
             return ResponseEntity.notFound().build();
+        }
+    }
+    
+    @GetMapping("/admindetails/{username}")
+    public ResponseEntity<User> getAdminByUsername(@PathVariable String username) {
+        User admin = doctorService.getAdminByUsername(username);
+
+        if (admin != null) {
+            return new ResponseEntity<>(admin, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
     
@@ -90,13 +93,13 @@ public class DoctorController {
         return result;
     }
 	
-	@CrossOrigin(origins = "https://docclickconnect.vercel.app")
+	@CrossOrigin(origins = "http://localhost:3000")
 
-    @PutMapping("/editdoctor")
-    public ResponseEntity<String> updateDetails(@RequestBody UserDoctorRequest userDoctorRequest) {
+    @PutMapping("/editdoctor/{username}")
+    public ResponseEntity<String> updateDetails(@RequestBody UserDoctorRequest userDoctorRequest, @PathVariable String username) {
     	User user = userDoctorRequest.getUser();
         Doctor doctor = userDoctorRequest.getDoctor();
-        String result = doctorService.updateUserAndDoctorDetails(user, doctor);
+        String result = doctorService.updateUserAndDoctorDetails(username, user, doctor);
         if ("User and doctor details updated successfully".equals(result)) {
             return ResponseEntity.ok(result);
         } else {
@@ -107,37 +110,24 @@ public class DoctorController {
     @PostMapping("/doctorlogin")
     public ResponseEntity<String> login(@RequestParam("username") String username,
                                         @RequestParam("password") String password) {
-        if (isDoctorLoggedIn) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Another user is already logged in");
-        }
 
         if (doctorService.login(username, password)) {
-            isDoctorLoggedIn = true;
             return ResponseEntity.ok("Login successful");
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Login failed");
         }
     }
 
-    @PostMapping("/doctorlogout")
-    public ResponseEntity<String> logout() {
-        if (!isDoctorLoggedIn) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("No user is currently logged in");
-        }
+    @PostMapping("/doctorlogout/{username}")
+    public ResponseEntity<String> logout(@PathVariable String username) {
 
-        doctorService.logout();
-        isDoctorLoggedIn = false;
+        doctorService.logout(username);
         return ResponseEntity.ok("Logged out successfully");
     }
     
-    @PostMapping("/adminlogout")
-    public ResponseEntity<String> logoutAdmin() {
-        if (!isAdminLoggedIn) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("No admin is currently logged in");
-        }
-
-        doctorService.adminlogout();
-        isAdminLoggedIn = false;
+    @PostMapping("/adminlogout/{username}")
+    public ResponseEntity<String> logoutAdmin(@PathVariable String username) {
+        doctorService.adminlogout(username);
         return ResponseEntity.ok("Logged out successfully");
     }
   
@@ -146,9 +136,7 @@ public class DoctorController {
             @RequestParam ("username") String username,
             @RequestParam ("oldPassword") String oldPassword,
             @RequestParam ("newPassword") String newPassword) {
-        if (!isDoctorLoggedIn) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("No user is currently logged in");
-        }
+
         return ResponseEntity.ok(doctorService.changePassword(username, oldPassword, newPassword));
     }
     
@@ -166,14 +154,11 @@ public class DoctorController {
     @PostMapping("/adminlogin")
     public ResponseEntity<String> adminLogin(@RequestParam("username") String username,
                                              @RequestParam("password") String password) {
-        if (isAdminLoggedIn) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Another admin is already logged in");
-        }
+
 
         String loginResult = doctorService.loginAdmin(username, password);
 
         if ("Login successful".equals(loginResult)) {
-            isAdminLoggedIn = true;
             return ResponseEntity.ok("Admin login successful");
         } else {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Admin login failed: " + loginResult);

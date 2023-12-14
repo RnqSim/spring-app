@@ -11,7 +11,7 @@ import java.sql.Time;
 import java.util.List;
 
 @RestController
-@CrossOrigin(origins = "https://docclickconnect.vercel.app/")
+@CrossOrigin(origins = "http://localhost:3000")
 public class ScheduleController {
 
     private final ScheduleService scheduleService;

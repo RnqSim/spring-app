@@ -11,8 +11,11 @@ import com.dcc.clinics.repository.UnverifiedUserRepository;
 import com.dcc.clinics.repository.UserRepository;
 import com.dcc.clinics.repository.PatientRepository;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
@@ -27,7 +30,7 @@ public class PatientService {
 	private final UserRepository userRepository;
 	private final PatientRepository patientRepository;
 	private final JavaMailSender javaMailSender;
-	private User loggedInPatient;
+    private List<User> loggedInPatients = new ArrayList<>();
 
     @Autowired
     public PatientService(UnverifiedUserRepository unverifiedUserRepository,UnverifiedPatientRepository unverifiedPatientRepository, UserRepository userRepository, PatientRepository patientRepository, JavaMailSender javaMailSender) {
@@ -105,7 +108,7 @@ public class PatientService {
         if (user != null && bcrypt.matches(password, user.getPassword())) {
             if ("patient".equalsIgnoreCase(user.getUserType())) {
                 // This is a patient account, allow login
-                setLoggedInPatient(user);
+               loggedInPatients.add(user);
                 return true;
             } else {
                 // This is not a patient account, deny login and print an error message
@@ -123,9 +126,8 @@ public class PatientService {
         BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder();
         User user = userRepository.findByUsername(username);
 
-        String loggedInPatientUsername = loggedInPatient.getUsername();
 
-        if(loggedInPatientUsername != username && user != null && bcrypt.matches(oldPassword, user.getPassword())) {
+        if(user != null && bcrypt.matches(oldPassword, user.getPassword())) {
             String encryptedPassword = bcrypt.encode(newPassword);
             user.setPassword(encryptedPassword);
             userRepository.save(user);
@@ -135,34 +137,59 @@ public class PatientService {
     }
 
 
-    public void logout() {
-        setLoggedInPatient(null);
+    public void logout(String username) {
+        // Remove the logged-out patient from the list based on the username
+        loggedInPatients.removeIf(user -> user.getUsername().equals(username));
     }
 
-    public User getUserByUsername(String username) {
-        return userRepository.findByUsername(username);
-    }
 
-    public Patient getLoggedInUser() {
-        return patientRepository.findByUserId(loggedInPatient.getUserId());
-    }
+
     
+    public Patient getUserByUsername(String username) {
+        User user = userRepository.findByUsername(username);
+
+        for (User loggedInPatient : loggedInPatients) {
+            if (loggedInPatient.getUserId().equals(user.getUserId())) {
+                return getPatientProfile(user.getUserId());
+            }
+        }
+
+        return null;
+    }
+
+    public Long getUserIdByUsername(String username) {
+        User user = userRepository.findByUsername(username);
+
+        if (user != null) {
+            for (User loggedInPatient : loggedInPatients) {
+                if (loggedInPatient.getUserId().equals(user.getUserId())) {
+                    return user.getUserId();
+                }
+            }
+        }
+
+        return null;
+    }
+
     public Patient getPatientProfile(Long patientUserId) {
     	return patientRepository.findByUserId(patientUserId);
     }
+    
+
+ 
 
     public void setLoggedInPatient(User loggedInPatient) {
-        this.loggedInPatient = loggedInPatient;
+        // Add the logged-in patient to the list
+        loggedInPatients.add(loggedInPatient);
     }
-    
-    public Long getLoggedInPatientUserId() {
-        if (loggedInPatient != null) {
-            return loggedInPatient.getUserId();
-        } else {
-            // Return a default value or handle the case when no patient is logged in.
-            return null; // You can choose an appropriate value or handle the case accordingly.
-        }
+
+    public List<Long> getLoggedInPatientUserIds() {
+        // Return a list of user IDs for all logged-in patients
+        return loggedInPatients.stream()
+                .map(User::getUserId)
+                .collect(Collectors.toList());
     }
+
 
 
 	private void sendVerificationEmail(String to, String subject, Integer code) {
@@ -185,16 +212,21 @@ public class PatientService {
         // Retrieve all registered users from the UserRepository
         return patientRepository.findAll();
     }
-    public String updateUserAndPatientDetails(User user, Patient patient) {
-        if (loggedInPatient == null) {
-            return "User not logged in"; // User is not logged in
+    public String updateUserAndPatientDetails(String username, User user, Patient patient) {
+        // Check if the user is logged in
+        if (loggedInPatients == null) {
+            return "User not logged in";
         }
 
-        Long userId = loggedInPatient.getUserId(); // Get the userId from the logged-in user
-        User existingUser = userRepository.findByUserId(userId);
-        Patient existingPatient = patientRepository.findByUserId(userId);
+        // Find the logged-in user based on the username
+        Optional<User> optionalUser = loggedInPatients.stream()
+                .filter(loggedInUser -> loggedInUser.getUsername().equals(username))
+                .findFirst();
 
-        if (existingUser != null && existingPatient != null) {
+        if (optionalUser.isPresent()) {
+            User existingUser = optionalUser.get();
+            Long userId = existingUser.getUserId();
+
             // Update user details
             existingUser.setFirstName(user.getFirstName());
             existingUser.setMiddleName(user.getMiddleName());
@@ -207,20 +239,28 @@ public class PatientService {
             existingUser.setEmail(user.getEmail());
             existingUser.setAvatar(user.getAvatar());
 
-            // Update patient details
-            existingPatient.setSeniorId(patient.getSeniorId());
-            existingPatient.setPwdId(patient.getPwdId());
-            existingPatient.setPhilhealthId(patient.getPhilhealthId());
-            existingPatient.setHmo(patient.getHmo());
+            // Find the patient based on the user ID
+            Patient existingPatient = patientRepository.findByUserId(userId);
 
-            // Save updated user and patient details
-            userRepository.save(existingUser);
-            patientRepository.save(existingPatient);
+            if (existingPatient != null) {
+                // Update patient details
+                existingPatient.setSeniorId(patient.getSeniorId());
+                existingPatient.setPwdId(patient.getPwdId());
+                existingPatient.setPhilhealthId(patient.getPhilhealthId());
+                existingPatient.setHmo(patient.getHmo());
 
-            return "User and patient details updated successfully";
+                // Save updated user and patient details
+                userRepository.save(existingUser);
+                patientRepository.save(existingPatient);
+
+                return "User and patient details updated successfully";
+            } else {
+                return "Patient not found for the given user ID";
+            }
         } else {
-            return "User or patient not found for the given ID";
+            return "User not found for the given username";
         }
     }
+
 
 }
