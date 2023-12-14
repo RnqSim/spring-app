@@ -203,7 +203,7 @@ public class AppointmentService {
 
             final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
             Credential credentials = getCredentials(HTTP_TRANSPORT);
-            Calendar calendarService = new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+            Calendar calendarService = new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, credentials)
                     .setApplicationName(APPLICATION_NAME)
                     .build();
 
@@ -321,7 +321,8 @@ public class AppointmentService {
 
             try {
                 final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
-                Calendar calendarService = new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
+                Credential credentials = getCredentials(HTTP_TRANSPORT);
+                Calendar calendarService = new Calendar.Builder(HTTP_TRANSPORT, JSON_FACTORY, credentials)
                         .setApplicationName(APPLICATION_NAME)
                         .build();
 

@@ -123,7 +123,7 @@ public class AppointmentController {
     }
 
     @GetMapping("/Callback")
-    public String catchCode(@RequestParam String code) {
+    public String catchCode(@RequestParam String code, @RequestParam String scope) {
         System.out.println(code);
         return appointmentService.catchCode(code);
     }
